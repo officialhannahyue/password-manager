@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+
+  isDemo       Boolean  @default(false)
+  sessions     Session[]
+  credentials  Credential[]
+  activities   Activity[]
+  settings     UserSettings?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Credential {
+  id           String   @id @default(uuid())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  url          String
+  email     String
+
+  // Encrypted password.
+  encryptedPassword String?
+
+  // Favorites
+  isFavorite   Boolean  @default(false)
+
+  // Trash
+  isTrashed    Boolean  @default(false)
+  deletedAt    DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activities   Activity[]
+
+  @@index([userId])
+  @@index([userId, name])
+  @@index([userId, isFavorite])
+  @@index([userId, isTrashed])
+}
+
+model Activity {
+  id           String        @id @default(uuid())
+
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  credentialId String?
+  credential   Credential?   @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+
+  type         ActivityType
+
+  createdAt    DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([credentialId])
+}
+
+model UserSettings {
+  id                String   @id @default(uuid())
+
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  theme             Theme    @default(SYSTEM)
+
+  autoLockEnabled   Boolean  @default(true)
+  autoLockMinutes   Int      @default(5)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum ActivityType {
+  CREATED
+  UPDATED
+  FAVORITED
+  UNFAVORITED
+  TRASHED
+  RESTORED
+  DELETED
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
